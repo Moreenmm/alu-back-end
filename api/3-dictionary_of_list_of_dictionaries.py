@@ -1,54 +1,37 @@
 #!/usr/bin/python3
-import requests
-import sys
+"""Script that gets user data (Todo list) from API
+and then export the result to csv file. """
+
 import json
+import requests
 
-def export_employee_todo_to_json(employee_id):
-    # Fetching employee details
-    user_url = f"https://jsonplaceholder.typicode.com/users/{employee_id}"
-    user_response = requests.get(user_url)
-    if user_response.status_code != 200:
-        print("Error: Employee not found.")
-        return
-    employee_data = user_response.json()
-    employee_username = employee_data.get('username', 'Unknown')
 
-    # Fetching the employee's TODO list
-    todos_url = f"https://jsonplaceholder.typicode.com/todos?userId={employee_id}"
-    todos_response = requests.get(todos_url)
-    if todos_response.status_code != 200:
-        print("Error: Unable to fetch TODO list.")
-        return
-    todos = todos_response.json()
+def main():
+    """main function"""
+    todo_url = 'https://jsonplaceholder.typicode.com/todos'
 
-    # Prepare JSON data
-    json_data = {
-        str(employee_id): [
+    response = requests.get(todo_url)
+
+    output = {}
+
+    for todo in response.json():
+        user_id = todo.get('userId')
+        if user_id not in output.keys():
+            output[user_id] = []
+            user_url = 'https://jsonplaceholder.typicode.com/users/{}'.format(
+                user_id)
+            user_name = requests.get(user_url).json().get('username')
+
+        output[user_id].append(
             {
-                "task": task['title'],
-                "completed": task['completed'],
-                "username": employee_username
-            }
-            for task in todos
-        ]
-    }
+                "username": user_name,
+                "task": todo.get('title'),
+                "completed": todo.get('completed')
+            })
 
-    # Defining the JSON file name
-    json_filename = f"{employee_id}.json"
+    with open("todo_all_employees.json", 'w') as file:
+        json.dump(output, file)
 
-    # Writing to JSON file
-    with open(json_filename, mode='w', encoding='utf-8') as json_file:
-        json.dump(json_data, json_file, indent=4)
 
-    print(f"Data exported to {json_filename} successfully.")
-
-if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python script.py EMPLOYEE_ID")
-        sys.exit(1)
-    try:
-        employee_id = int(sys.argv[1])
-        export_employee_todo_to_json(employee_id)
-    except ValueError:
-        print("Error: Employee ID must be an integer.")
-        sys.exit(1)
+if __name__ == '__main__':
+    main()
